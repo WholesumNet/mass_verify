@@ -1,12 +1,9 @@
-use risc0_zkvm::{guest::env, Journal};
+use risc0_zkvm::{guest::env, ReceiptClaim};
 
 fn main() {
-
-    let image_id: [u8; 32] = env::read();
-    let journals: Vec<Journal> = env::read();
-    let length = journals.len();
-    for j in journals {
-        env::verify(image_id, &j.bytes).unwrap();
+    let claims: Vec<ReceiptClaim> = env::read();
+    for c in &claims {
+        env::verify_integrity(c).unwrap();
     }
-    env::commit(&length);
+    env::commit(&claims.len());
 }

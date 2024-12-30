@@ -3,8 +3,7 @@
 use methods::{
     VERIFY_IT_ELF, VERIFY_IT_ID
 };
-use risc0_zkvm::{default_prover, ExecutorEnv, Receipt, Journal};
-use hex::FromHex;
+use risc0_zkvm::{default_prover, ExecutorEnv, SuccinctReceipt, ReceiptClaim};
 use std::time::Instant;
 use clap::{
     Parser
@@ -13,7 +12,7 @@ use clap::{
 #[command(version, about, long_about = None)]
 struct Cli {
 
-    /// Path to proofs file for the hash example
+    /// Path to succinct proofs directoy for the hash example
     #[arg(short)]
     p: String,    
 }
@@ -25,19 +24,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .init();
     let args = Cli::parse();
 
-    let hash_image_id = <[u8; 32]>::from_hex("26264f1dbc5febde01f009c7b06c10a06f14c85c2c2e4d411aaa72e9d8896ae0")?;    
-    let proofs: Vec<Receipt> = bincode::deserialize(
-        &std::fs::read(args.p)?
-    )?;
-    let journals: Vec<Journal> = proofs.iter()
-        .map(|p| p.journal.clone())
-        .collect();
-
+    let mut proofs: Vec<SuccinctReceipt<ReceiptClaim>> = vec![];
+    let mut claims: Vec<ReceiptClaim> = vec![];
+    for entry in std::fs::read_dir(args.p)?{            
+        let proof: SuccinctReceipt<ReceiptClaim> = bincode::deserialize(
+            &std::fs::read(entry?.path())?            
+        )?;
+        claims.push(proof.claim.as_value()?.clone());
+        proofs.push(proof);
+    }
+    
     // let binding = ExecutorEnv::builder();
     let mut builder = ExecutorEnv::builder();
     builder
-        .write(&hash_image_id)?
-        .write(&journals)?;
+        .write(&claims)?;
     for p in proofs {
         builder.add_assumption(p);
     }
@@ -50,8 +50,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // This struct contains the receipt along with statistics about execution of the guest
     let now = Instant::now(); 
     let prove_info = prover
-        .prove(exec_env, VERIFY_IT_ELF)
-        .unwrap();
+        .prove(
+            exec_env,
+            VERIFY_IT_ELF
+        )?;
     let prove_dur = now.elapsed().as_secs();
 
     println!("Prove took `{prove_dur} seconds`.");
