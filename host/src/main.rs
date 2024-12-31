@@ -12,7 +12,7 @@ use clap::{
 #[command(version, about, long_about = None)]
 struct Cli {
 
-    /// Path to succinct proofs directoy for the hash example
+    /// Path to succinct proofs directoy
     #[arg(short)]
     p: String,    
 }
@@ -65,7 +65,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .verify(VERIFY_IT_ID)?;
 
     let num_proofs: usize = receipt.journal.decode().unwrap();
-    println!("Number of proofs verified: {}", num_proofs);
+    println!("Journal: number of proofs verified: {}", num_proofs);
 
     Ok(())
 }
